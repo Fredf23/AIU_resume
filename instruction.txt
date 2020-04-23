@@ -113,13 +113,15 @@ User=root
 Group=www-data
 WorkingDirectory=/home/ubuntu/blog
 ExecStart=/home/ubuntu/blog/django2/bin/gunicorn --access-logfile - --workers 3 --bind unix:/home/ubuntu/blog/blog.sock blog.wsgi
+
+[Install]
+WantedBy=multi-user.target
 -----------------------------------------
 
 WorkingDirectory - папка с проектом (где лежит manage.py)
 /home/ubuntu/blog/django2/bin/gunicorn - путь до гуникорна в окружении
 
-[Install]
-WantedBy=multi-user.target
+
 
 - Регистрация и запуск сервиса
 sudo systemctl enable gunicorn
