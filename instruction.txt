@@ -23,6 +23,8 @@ sudo service vsftpd restart
 
 3. Создание python окружения для проекта
 
+(Варианыт: 1. использовать старый питон (тогда не все бибилотеки новые работают и f-строки), 
+2. установить python3.8, 3. обновить дистрибутив например до 18.04 (3.6python), 4. хостинг с новой системой)
 ПОСТАВИТЬ НОВЫЙ python
 https://linuxize.com/post/how-to-install-python-3-8-on-ubuntu-18-04/
 sudo apt install python3.8-venv
@@ -78,11 +80,91 @@ DATABASES = {
 - установка psycopg2
 обновим pip
 pip install --upgrade pip
-pip3 install psycopg2 # ???
+
+Установка дополнительных пакетов
+В окружении
+sudo apt-get install libpq-dev python3.8-dev
+pip install psycopg2
+Без окружения
+sudo apt-get install libpq-dev python3-dev
+pip3 install psycopg2
+
 
 Проверка:
 python manage.py migrate
 
-- gunicorn
 
-- nginx
+6. gunicorn (uwsgi)
+- установить
+pip install gunicorn
+- Тестовый запуск проекта
+gunicorn blog.wsgi (из папки проекта)
+- Регистрация gunicorn как сервиса (сеть, сокет)
+sudo nano /etc/systemd/system/gunicorn.service
+
+- текст файла
+--------------------------------------
+[Unit]
+Description=gunicorn daemon
+After=network.target
+
+[Service]
+User=root
+Group=www-data
+WorkingDirectory=/home/ubuntu/blog
+ExecStart=/home/ubuntu/blog/django2/bin/gunicorn --access-logfile - --workers 3 --bind unix:/home/ubuntu/blog/blog.sock blog.wsgi
+-----------------------------------------
+
+WorkingDirectory - папка с проектом (где лежит manage.py)
+/home/ubuntu/blog/django2/bin/gunicorn - путь до гуникорна в окружении
+
+[Install]
+WantedBy=multi-user.target
+
+- Регистрация и запуск сервиса
+sudo systemctl enable gunicorn
+sudo systemctl start gunicorn
+sudo systemctl status gunicorn (service gunicorn status) - должен быть active
+
+7. nginx
+- установка
+sudo apt install nginx
+service nginx status
+- насройка nginx
+cd /etc/nginx/sites-available/
+- перенаправление запросов на сокет гуникорна
+nano default
+текст фала
+---------------------------------------------
+server {
+    listen 80;
+    server_name 192.168.0.98;
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+    location /static/ {
+        root /home/ubuntu/blog;
+    }
+
+    location /media/ {
+        root /home/ubuntu/blog;
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/home/ubuntu/blog/blog.sock;
+    }
+}
+-------------------------------------------------
+service nginx restart
+
+ВОЗМОЖНЫЕ ОШИБКИ, СИТУАЦИИ
+
+Если имзенения внесли в проект
+service gunicorn restart
+service nginx restart (если нет изменений)
+
+Если 500 ошибка
+1. debug = True - посмотреть в чем ошибка
+2. прописать почту для уведомления об ошибках https://docs.djangoproject.com/en/3.0/ref/settings/#std:setting-ADMINS
+3. https://sentry.io/ - уведомления
+4. log nginx
